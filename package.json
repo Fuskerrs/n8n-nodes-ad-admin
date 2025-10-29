@@ -27,7 +27,7 @@
   },
   "scripts": {
     "build": "tsc && npm run copy-icons",
-    "copy-icons": "cp icons/*.svg dist/icons/",
+    "copy-icons": "cp icons/*.svg dist/icons/ && cp nodes/ActiveDirectoryAdmin/*.svg dist/nodes/ActiveDirectoryAdmin/",
     "lint": "eslint .",
     "dev": "tsc -w"
   },

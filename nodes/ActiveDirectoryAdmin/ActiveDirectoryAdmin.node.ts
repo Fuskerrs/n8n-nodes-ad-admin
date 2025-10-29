@@ -14,7 +14,7 @@ export class ActiveDirectoryAdmin implements INodeType {
   description: INodeTypeDescription = {
     displayName: 'Active Directory Admin',
     name: 'activeDirectoryAdmin',
-    icon: 'fa:server',
+    icon: 'file:activeDirectoryAdmin.svg',
     group: ['transform'],
     version: 1,
     description: 'Perform administrative operations on Active Directory via LDAP/LDAPS',
