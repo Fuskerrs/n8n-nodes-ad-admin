@@ -703,4 +703,409 @@ export class AdClient {
       };
     }
   }
+
+  /**
+   * Creates an Organizational Unit
+   */
+  async createOU(name: string, parentDn: string, description?: string): Promise<any> {
+    const ouDn = `OU=${escapeDN(name)},${parentDn}`;
+
+    const entry: any = {
+      objectClass: ['top', 'organizationalUnit'],
+      ou: name,
+    };
+
+    if (description) {
+      entry.description = description;
+    }
+
+    await this.add(ouDn, entry);
+
+    return {
+      success: true,
+      dn: ouDn,
+      name,
+      message: 'Organizational Unit created successfully',
+    };
+  }
+
+  /**
+   * Gets an Organizational Unit by DN
+   */
+  async getOU(dn: string): Promise<any> {
+    const { searchEntries } = await this.search(dn, {
+      scope: 'base',
+      attributes: ['ou', 'description', 'distinguishedName', 'whenCreated', 'whenChanged', 'objectClass'],
+    });
+
+    if (!searchEntries || searchEntries.length === 0) {
+      throw new Error(`Organizational Unit not found: ${dn}`);
+    }
+
+    const ou = searchEntries[0];
+    return {
+      distinguishedName: ou.dn?.toString(),
+      name: ou.ou?.toString(),
+      description: ou.description?.toString() || '',
+      whenCreated: ou.whenCreated?.toString(),
+      whenChanged: ou.whenChanged?.toString(),
+      objectClass: Array.isArray(ou.objectClass) ? ou.objectClass.map(o => o.toString()) : [ou.objectClass?.toString()],
+    };
+  }
+
+  /**
+   * Modifies an Organizational Unit
+   */
+  async modifyOU(dn: string, attributes: Record<string, string>): Promise<any> {
+    const changes: any[] = [];
+
+    for (const [key, value] of Object.entries(attributes)) {
+      changes.push(new Change({
+        operation: 'replace',
+        modification: new Attribute({
+          type: key,
+          values: [value],
+        }),
+      }));
+    }
+
+    await this.modify(dn, changes);
+
+    return {
+      success: true,
+      dn,
+      message: 'Organizational Unit modified successfully',
+    };
+  }
+
+  /**
+   * Deletes an Organizational Unit (must be empty)
+   */
+  async deleteOU(dn: string): Promise<any> {
+    try {
+      await this.client.del(dn);
+      return {
+        success: true,
+        dn,
+        message: 'Organizational Unit deleted successfully',
+      };
+    } catch (error: any) {
+      if (error.message?.includes('closed') || error.message?.includes('timeout')) {
+        await this.reconnect();
+        await this.client.del(dn);
+        return {
+          success: true,
+          dn,
+          message: 'Organizational Unit deleted successfully',
+        };
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Lists Organizational Units
+   */
+  async listOUs(parentDn?: string, searchFilter?: string): Promise<any[]> {
+    const baseDn = parentDn || this.baseDn;
+    let filter = '(objectClass=organizationalUnit)';
+
+    if (searchFilter) {
+      filter = `(&(objectClass=organizationalUnit)(ou=*${searchFilter}*))`;
+    }
+
+    const { searchEntries } = await this.search(baseDn, {
+      scope: 'sub',
+      filter,
+      attributes: ['ou', 'description', 'distinguishedName', 'whenCreated'],
+    });
+
+    if (!searchEntries || searchEntries.length === 0) {
+      return [];
+    }
+
+    return searchEntries.map(ou => ({
+      distinguishedName: ou.dn?.toString(),
+      name: ou.ou?.toString(),
+      description: ou.description?.toString() || '',
+      whenCreated: ou.whenCreated?.toString(),
+    }));
+  }
+
+  /**
+   * Creates a Group (Security or Distribution)
+   */
+  async createGroup(
+    name: string,
+    parentDn: string,
+    options: {
+      groupType?: 'security' | 'distribution';
+      scope?: 'global' | 'domainLocal' | 'universal';
+      description?: string;
+      samAccountName?: string;
+    } = {}
+  ): Promise<any> {
+    const {
+      groupType = 'security',
+      scope = 'global',
+      description,
+      samAccountName = name,
+    } = options;
+
+    const groupDn = `CN=${escapeDN(name)},${parentDn}`;
+
+    // Calculate groupType flag
+    // Reference: https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/11972272-09ec-4a42-bf5e-3e99b321cf55
+    let groupTypeValue = 0;
+
+    // Group scope
+    if (scope === 'global') {
+      groupTypeValue |= 0x00000002; // GROUP_TYPE_GLOBAL
+    } else if (scope === 'domainLocal') {
+      groupTypeValue |= 0x00000004; // GROUP_TYPE_DOMAIN_LOCAL
+    } else if (scope === 'universal') {
+      groupTypeValue |= 0x00000008; // GROUP_TYPE_UNIVERSAL
+    }
+
+    // Security flag
+    if (groupType === 'security') {
+      groupTypeValue |= 0x80000000; // GROUP_TYPE_SECURITY_ENABLED
+    }
+
+    const entry: any = {
+      objectClass: ['top', 'group'],
+      cn: name,
+      sAMAccountName: samAccountName,
+      groupType: String(groupTypeValue),
+    };
+
+    if (description) {
+      entry.description = description;
+    }
+
+    await this.add(groupDn, entry);
+
+    return {
+      success: true,
+      dn: groupDn,
+      name,
+      samAccountName,
+      groupType,
+      scope,
+      message: 'Group created successfully',
+    };
+  }
+
+  /**
+   * Gets a Group by DN
+   */
+  async getGroup(dn: string): Promise<any> {
+    const { searchEntries } = await this.search(dn, {
+      scope: 'base',
+      attributes: ['cn', 'sAMAccountName', 'description', 'member', 'groupType', 'distinguishedName', 'whenCreated', 'whenChanged'],
+    });
+
+    if (!searchEntries || searchEntries.length === 0) {
+      throw new Error(`Group not found: ${dn}`);
+    }
+
+    const group = searchEntries[0];
+    const groupTypeValue = parseInt(group.groupType?.toString() || '0', 10);
+
+    // Decode groupType
+    const isSecurity = !!(groupTypeValue & 0x80000000);
+    let scope = 'unknown';
+    if (groupTypeValue & 0x00000002) scope = 'global';
+    else if (groupTypeValue & 0x00000004) scope = 'domainLocal';
+    else if (groupTypeValue & 0x00000008) scope = 'universal';
+
+    const members = group.member;
+    const memberList = members
+      ? (Array.isArray(members) ? members.map(m => m.toString()) : [members.toString()])
+      : [];
+
+    return {
+      distinguishedName: group.dn?.toString(),
+      name: group.cn?.toString(),
+      samAccountName: group.sAMAccountName?.toString(),
+      description: group.description?.toString() || '',
+      groupType: isSecurity ? 'security' : 'distribution',
+      scope,
+      groupTypeValue,
+      memberCount: memberList.length,
+      members: memberList,
+      whenCreated: group.whenCreated?.toString(),
+      whenChanged: group.whenChanged?.toString(),
+    };
+  }
+
+  /**
+   * Modifies a Group
+   */
+  async modifyGroup(dn: string, attributes: Record<string, string>): Promise<any> {
+    const changes: any[] = [];
+
+    for (const [key, value] of Object.entries(attributes)) {
+      changes.push(new Change({
+        operation: 'replace',
+        modification: new Attribute({
+          type: key,
+          values: [value],
+        }),
+      }));
+    }
+
+    await this.modify(dn, changes);
+
+    return {
+      success: true,
+      dn,
+      message: 'Group modified successfully',
+    };
+  }
+
+  /**
+   * Deletes a Group
+   */
+  async deleteGroup(dn: string): Promise<any> {
+    try {
+      await this.client.del(dn);
+      return {
+        success: true,
+        dn,
+        message: 'Group deleted successfully',
+      };
+    } catch (error: any) {
+      if (error.message?.includes('closed') || error.message?.includes('timeout')) {
+        await this.reconnect();
+        await this.client.del(dn);
+        return {
+          success: true,
+          dn,
+          message: 'Group deleted successfully',
+        };
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Lists Groups with filters
+   */
+  async listGroups(options: {
+    searchFilter?: string;
+    groupType?: 'security' | 'distribution' | 'all';
+    scope?: 'global' | 'domainLocal' | 'universal' | 'all';
+    maxResults?: number;
+  } = {}): Promise<any[]> {
+    const { searchFilter, groupType = 'all', scope = 'all', maxResults } = options;
+
+    let filter = '(objectClass=group)';
+
+    // Add name filter if provided
+    if (searchFilter) {
+      filter = `(&(objectClass=group)(|(cn=*${searchFilter}*)(sAMAccountName=*${searchFilter}*)))`;
+    }
+
+    const searchOptions: any = {
+      scope: 'sub',
+      filter,
+      attributes: ['cn', 'sAMAccountName', 'description', 'groupType', 'distinguishedName', 'whenCreated'],
+    };
+
+    if (maxResults) {
+      searchOptions.sizeLimit = maxResults;
+    }
+
+    const { searchEntries } = await this.search(this.baseDn, searchOptions);
+
+    if (!searchEntries || searchEntries.length === 0) {
+      return [];
+    }
+
+    return searchEntries
+      .map(group => {
+        const groupTypeValue = parseInt(group.groupType?.toString() || '0', 10);
+        const isSecurity = !!(groupTypeValue & 0x80000000);
+        let groupScope = 'unknown';
+        if (groupTypeValue & 0x00000002) groupScope = 'global';
+        else if (groupTypeValue & 0x00000004) groupScope = 'domainLocal';
+        else if (groupTypeValue & 0x00000008) groupScope = 'universal';
+
+        return {
+          distinguishedName: group.dn?.toString(),
+          name: group.cn?.toString(),
+          samAccountName: group.sAMAccountName?.toString(),
+          description: group.description?.toString() || '',
+          groupType: isSecurity ? 'security' : 'distribution',
+          scope: groupScope,
+          whenCreated: group.whenCreated?.toString(),
+        };
+      })
+      .filter(group => {
+        // Filter by groupType if specified
+        if (groupType !== 'all' && group.groupType !== groupType) {
+          return false;
+        }
+        // Filter by scope if specified
+        if (scope !== 'all' && group.scope !== scope) {
+          return false;
+        }
+        return true;
+      });
+  }
+
+  /**
+   * Searches groups by name (for autocomplete/dropdown)
+   */
+  async searchGroups(searchTerm: string, maxResults: number = 50): Promise<Array<{ name: string; value: string; description: string }>> {
+    const filter = searchTerm
+      ? `(&(objectClass=group)(|(cn=*${searchTerm}*)(sAMAccountName=*${searchTerm}*)))`
+      : '(objectClass=group)';
+
+    const { searchEntries } = await this.search(this.baseDn, {
+      scope: 'sub',
+      filter,
+      attributes: ['cn', 'sAMAccountName', 'description', 'distinguishedName'],
+      sizeLimit: maxResults,
+    });
+
+    if (!searchEntries || searchEntries.length === 0) {
+      return [];
+    }
+
+    return searchEntries.map(group => ({
+      name: group.cn?.toString() || '',
+      value: group.dn?.toString() || '',
+      description: group.description?.toString() || group.sAMAccountName?.toString() || '',
+    }));
+  }
+
+  /**
+   * Searches OUs by name (for autocomplete/dropdown)
+   */
+  async searchOUs(searchTerm: string, maxResults: number = 50): Promise<Array<{ name: string; value: string; description: string }>> {
+    const filter = searchTerm
+      ? `(&(objectClass=organizationalUnit)(ou=*${searchTerm}*))`
+      : '(objectClass=organizationalUnit)';
+
+    const { searchEntries } = await this.search(this.baseDn, {
+      scope: 'sub',
+      filter,
+      attributes: ['ou', 'description', 'distinguishedName'],
+      sizeLimit: maxResults,
+    });
+
+    if (!searchEntries || searchEntries.length === 0) {
+      return [];
+    }
+
+    return searchEntries.map(ou => ({
+      name: ou.ou?.toString() || '',
+      value: ou.dn?.toString() || '',
+      description: ou.description?.toString() || '',
+    }));
+  }
 }

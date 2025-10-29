@@ -1,6 +1,8 @@
 import type {
   IExecuteFunctions,
+  ILoadOptionsFunctions,
   INodeExecutionData,
+  INodePropertyOptions,
   INodeType,
   INodeTypeDescription,
 } from 'n8n-workflow';
@@ -34,6 +36,7 @@ export class ActiveDirectoryAdmin implements INodeType {
         options: [
           { name: 'User', value: 'user' },
           { name: 'Group', value: 'group' },
+          { name: 'Organizational Unit', value: 'ou' },
         ],
         default: 'user',
       },
@@ -74,10 +77,34 @@ export class ActiveDirectoryAdmin implements INodeType {
           },
         },
         options: [
+          { name: 'Create', value: 'create', description: 'Create a group' },
+          { name: 'Get', value: 'get', description: 'Get group details' },
+          { name: 'List', value: 'list', description: 'List groups with filters' },
+          { name: 'Modify', value: 'modify', description: 'Modify group attributes' },
+          { name: 'Delete', value: 'delete', description: 'Delete a group' },
           { name: 'Add Member', value: 'addMember', description: 'Add a member to group' },
           { name: 'Remove Member', value: 'removeMember', description: 'Remove a member from group' },
         ],
-        default: 'addMember',
+        default: 'create',
+      },
+      {
+        displayName: 'Operation',
+        name: 'operation',
+        type: 'options',
+        noDataExpression: true,
+        displayOptions: {
+          show: {
+            resource: ['ou'],
+          },
+        },
+        options: [
+          { name: 'Create', value: 'create', description: 'Create an Organizational Unit' },
+          { name: 'Get', value: 'get', description: 'Get OU details' },
+          { name: 'List', value: 'list', description: 'List Organizational Units' },
+          { name: 'Modify', value: 'modify', description: 'Modify OU attributes' },
+          { name: 'Delete', value: 'delete', description: 'Delete an Organizational Unit' },
+        ],
+        default: 'create',
       },
       {
         displayName: 'Continue on Error',
@@ -471,7 +498,7 @@ export class ActiveDirectoryAdmin implements INodeType {
       {
         displayName: 'Attributes',
         name: 'attributes',
-        placeholder: 'Ajouter un attribut',
+        placeholder: 'Add an attribute',
         type: 'fixedCollection',
         typeOptions: { multipleValues: true },
         default: {},
@@ -489,10 +516,12 @@ export class ActiveDirectoryAdmin implements INodeType {
               {
                 displayName: 'Name',
                 name: 'name',
-                type: 'string',
-                default: '',
-                placeholder: 'telephoneNumber',
-                description: 'Nom de l\'attribut AD',
+                type: 'options',
+                typeOptions: {
+                  loadOptionsMethod: 'getUserAttributes',
+                },
+                default: 'displayName',
+                description: 'AD attribute name',
               },
               {
                 displayName: 'Values',
@@ -500,7 +529,7 @@ export class ActiveDirectoryAdmin implements INodeType {
                 type: 'string',
                 typeOptions: { multipleValues: true },
                 default: [],
-                description: 'Valeur(s) de l\'attribut',
+                description: 'Attribute value(s)',
               },
               {
                 displayName: 'Operation',
@@ -508,16 +537,507 @@ export class ActiveDirectoryAdmin implements INodeType {
                 type: 'options',
                 default: 'replace',
                 options: [
-                  { name: 'Add', value: 'add', description: 'Ajouter une valeur' },
-                  { name: 'Delete', value: 'delete', description: 'Supprimer une valeur' },
-                  { name: 'Replace', value: 'replace', description: 'Remplacer toutes les valeurs' },
+                  { name: 'Add', value: 'add', description: 'Add a value' },
+                  { name: 'Delete', value: 'delete', description: 'Delete a value' },
+                  { name: 'Replace', value: 'replace', description: 'Replace all values' },
                 ],
               },
             ],
           },
         ],
       },
+      // ============================
+      // GROUP FIELDS
+      // ============================
+      {
+        displayName: 'Group Name',
+        name: 'groupName',
+        type: 'string',
+        default: '',
+        placeholder: 'Sales Team',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['create'],
+          },
+        },
+        required: true,
+        description: 'Name of the group',
+      },
+      {
+        displayName: 'Parent DN',
+        name: 'groupParentDn',
+        type: 'string',
+        default: '',
+        placeholder: 'OU=Groups,DC=example,DC=local',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['create'],
+          },
+        },
+        required: true,
+        description: 'DN of the parent OU where the group will be created',
+      },
+      {
+        displayName: 'Group Type',
+        name: 'groupType',
+        type: 'options',
+        options: [
+          { name: 'Security', value: 'security', description: 'Security group (can be used for permissions)' },
+          { name: 'Distribution', value: 'distribution', description: 'Distribution group (email only)' },
+        ],
+        default: 'security',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['create'],
+          },
+        },
+        description: 'Type of group to create',
+      },
+      {
+        displayName: 'Group Scope',
+        name: 'groupScope',
+        type: 'options',
+        options: [
+          { name: 'Global', value: 'global', description: 'Global scope (default)' },
+          { name: 'Domain Local', value: 'domainLocal', description: 'Domain local scope' },
+          { name: 'Universal', value: 'universal', description: 'Universal scope' },
+        ],
+        default: 'global',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['create'],
+          },
+        },
+        description: 'Scope of the group',
+      },
+      {
+        displayName: 'Description',
+        name: 'groupDescription',
+        type: 'string',
+        default: '',
+        placeholder: 'Sales department security group',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['create', 'modify'],
+          },
+        },
+        description: 'Description of the group',
+      },
+      {
+        displayName: 'sAMAccountName',
+        name: 'groupSamAccountName',
+        type: 'string',
+        default: '',
+        placeholder: 'SalesTeam',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['create'],
+          },
+        },
+        description: 'sAMAccountName for the group (defaults to group name)',
+      },
+      {
+        displayName: 'Group DN',
+        name: 'groupDn',
+        type: 'string',
+        default: '',
+        placeholder: 'CN=Sales Team,OU=Groups,DC=example,DC=local',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['get', 'modify', 'delete'],
+          },
+        },
+        required: true,
+        description: 'Distinguished Name of the group',
+      },
+      {
+        displayName: 'Search Filter',
+        name: 'groupSearchFilter',
+        type: 'string',
+        default: '',
+        placeholder: 'Sales',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['list'],
+          },
+        },
+        description: 'Search term to filter groups (searches in name and sAMAccountName)',
+      },
+      {
+        displayName: 'Filter by Type',
+        name: 'groupFilterType',
+        type: 'options',
+        options: [
+          { name: 'All', value: 'all' },
+          { name: 'Security', value: 'security' },
+          { name: 'Distribution', value: 'distribution' },
+        ],
+        default: 'all',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['list'],
+          },
+        },
+        description: 'Filter groups by type',
+      },
+      {
+        displayName: 'Filter by Scope',
+        name: 'groupFilterScope',
+        type: 'options',
+        options: [
+          { name: 'All', value: 'all' },
+          { name: 'Global', value: 'global' },
+          { name: 'Domain Local', value: 'domainLocal' },
+          { name: 'Universal', value: 'universal' },
+        ],
+        default: 'all',
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['list'],
+          },
+        },
+        description: 'Filter groups by scope',
+      },
+      {
+        displayName: 'Max Results',
+        name: 'groupMaxResults',
+        type: 'number',
+        default: 100,
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['list'],
+          },
+        },
+        description: 'Maximum number of results to return',
+      },
+      {
+        displayName: 'Attributes',
+        name: 'groupAttributes',
+        type: 'fixedCollection',
+        typeOptions: {
+          multipleValues: true,
+        },
+        default: {},
+        displayOptions: {
+          show: {
+            resource: ['group'],
+            operation: ['modify'],
+          },
+        },
+        description: 'Attributes to modify',
+        options: [
+          {
+            name: 'attribute',
+            displayName: 'Attribute',
+            values: [
+              {
+                displayName: 'Name',
+                name: 'name',
+                type: 'options',
+                typeOptions: {
+                  loadOptionsMethod: 'getGroupAttributes',
+                },
+                default: 'description',
+                description: 'Attribute name',
+              },
+              {
+                displayName: 'Value',
+                name: 'value',
+                type: 'string',
+                default: '',
+                description: 'Attribute value',
+              },
+            ],
+          },
+        ],
+      },
+      // ============================
+      // OU FIELDS
+      // ============================
+      {
+        displayName: 'OU Name',
+        name: 'ouName',
+        type: 'string',
+        default: '',
+        placeholder: 'Sales',
+        displayOptions: {
+          show: {
+            resource: ['ou'],
+            operation: ['create'],
+          },
+        },
+        required: true,
+        description: 'Name of the Organizational Unit',
+      },
+      {
+        displayName: 'Parent DN',
+        name: 'ouParentDn',
+        type: 'string',
+        default: '',
+        placeholder: 'DC=example,DC=local',
+        displayOptions: {
+          show: {
+            resource: ['ou'],
+            operation: ['create'],
+          },
+        },
+        required: true,
+        description: 'DN of the parent where the OU will be created',
+      },
+      {
+        displayName: 'Description',
+        name: 'ouDescription',
+        type: 'string',
+        default: '',
+        placeholder: 'Sales department',
+        displayOptions: {
+          show: {
+            resource: ['ou'],
+            operation: ['create', 'modify'],
+          },
+        },
+        description: 'Description of the OU',
+      },
+      {
+        displayName: 'OU DN',
+        name: 'ouDn',
+        type: 'string',
+        default: '',
+        placeholder: 'OU=Sales,DC=example,DC=local',
+        displayOptions: {
+          show: {
+            resource: ['ou'],
+            operation: ['get', 'modify', 'delete'],
+          },
+        },
+        required: true,
+        description: 'Distinguished Name of the OU',
+      },
+      {
+        displayName: 'Parent DN',
+        name: 'ouParentDnList',
+        type: 'string',
+        default: '',
+        placeholder: 'DC=example,DC=local (empty = base DN)',
+        displayOptions: {
+          show: {
+            resource: ['ou'],
+            operation: ['list'],
+          },
+        },
+        description: 'Parent DN to search in (leave empty for base DN)',
+      },
+      {
+        displayName: 'Search Filter',
+        name: 'ouSearchFilter',
+        type: 'string',
+        default: '',
+        placeholder: 'Sales',
+        displayOptions: {
+          show: {
+            resource: ['ou'],
+            operation: ['list'],
+          },
+        },
+        description: 'Search term to filter OUs by name',
+      },
+      {
+        displayName: 'Attributes',
+        name: 'ouAttributes',
+        type: 'fixedCollection',
+        typeOptions: {
+          multipleValues: true,
+        },
+        default: {},
+        displayOptions: {
+          show: {
+            resource: ['ou'],
+            operation: ['modify'],
+          },
+        },
+        description: 'Attributes to modify',
+        options: [
+          {
+            name: 'attribute',
+            displayName: 'Attribute',
+            values: [
+              {
+                displayName: 'Name',
+                name: 'name',
+                type: 'string',
+                default: 'description',
+                placeholder: 'description',
+                description: 'Attribute name',
+              },
+              {
+                displayName: 'Value',
+                name: 'value',
+                type: 'string',
+                default: '',
+                description: 'Attribute value',
+              },
+            ],
+          },
+        ],
+      },
     ],
+  };
+
+  methods = {
+    loadOptions: {
+      // Load groups dynamically for dropdown
+      async getGroupsList(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        const credentials = await this.getCredentials('activeDirectoryApi');
+        const { AdClient } = await import('../../helpers/ldap');
+
+        const host = credentials.host as string;
+        const port = credentials.port as number;
+        const baseDn = credentials.baseDn as string;
+        const bindDn = credentials.bindDn as string;
+        const password = credentials.password as string;
+        const connectionType = credentials.connectionType as string;
+        const isSecure = connectionType === 'ldaps';
+
+        let tlsOptions: any = undefined;
+        if (isSecure) {
+          const tlsValidation = credentials.tlsValidation as string || 'system';
+          if (tlsValidation === 'skip') {
+            tlsOptions = { rejectUnauthorized: false };
+          } else if (tlsValidation === 'custom' && credentials.customCertificate) {
+            tlsOptions = {
+              rejectUnauthorized: true,
+              ca: credentials.customCertificate as string
+            };
+          } else {
+            tlsOptions = { rejectUnauthorized: true };
+          }
+        }
+
+        const config = {
+          url: `${connectionType}://${host}:${port}`,
+          bindDn,
+          password,
+          timeout: credentials.timeout as number || 10000,
+          tlsOptions,
+          isSecure,
+        };
+
+        const client = new AdClient(config, baseDn);
+
+        try {
+          await client.bind(bindDn, password);
+          const groups = await client.searchGroups('', 100);
+          await client.unbind();
+
+          return groups.map(g => ({
+            name: `${g.name}${g.description ? ' - ' + g.description : ''}`,
+            value: g.value,
+          }));
+        } catch (error: any) {
+          await client.unbind();
+          throw new Error(`Failed to load groups: ${error.message}`);
+        }
+      },
+
+      // Load OUs dynamically for dropdown
+      async getOUsList(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        const credentials = await this.getCredentials('activeDirectoryApi');
+        const { AdClient } = await import('../../helpers/ldap');
+
+        const host = credentials.host as string;
+        const port = credentials.port as number;
+        const baseDn = credentials.baseDn as string;
+        const bindDn = credentials.bindDn as string;
+        const password = credentials.password as string;
+        const connectionType = credentials.connectionType as string;
+        const isSecure = connectionType === 'ldaps';
+
+        let tlsOptions: any = undefined;
+        if (isSecure) {
+          const tlsValidation = credentials.tlsValidation as string || 'system';
+          if (tlsValidation === 'skip') {
+            tlsOptions = { rejectUnauthorized: false };
+          } else if (tlsValidation === 'custom' && credentials.customCertificate) {
+            tlsOptions = {
+              rejectUnauthorized: true,
+              ca: credentials.customCertificate as string
+            };
+          } else {
+            tlsOptions = { rejectUnauthorized: true };
+          }
+        }
+
+        const config = {
+          url: `${connectionType}://${host}:${port}`,
+          bindDn,
+          password,
+          timeout: credentials.timeout as number || 10000,
+          tlsOptions,
+          isSecure,
+        };
+
+        const client = new AdClient(config, baseDn);
+
+        try {
+          await client.bind(bindDn, password);
+          const ous = await client.searchOUs('', 100);
+          await client.unbind();
+
+          return ous.map(o => ({
+            name: `${o.name}${o.description ? ' - ' + o.description : ''}`,
+            value: o.value,
+          }));
+        } catch (error: any) {
+          await client.unbind();
+          throw new Error(`Failed to load OUs: ${error.message}`);
+        }
+      },
+
+      // Load common group attributes for dropdown
+      async getGroupAttributes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        return [
+          { name: 'Description', value: 'description' },
+          { name: 'Display Name', value: 'displayName' },
+          { name: 'Info', value: 'info' },
+          { name: 'Mail', value: 'mail' },
+          { name: 'Managed By', value: 'managedBy' },
+        ];
+      },
+
+      // Load common user attributes for dropdown
+      async getUserAttributes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+        return [
+          { name: 'Display Name', value: 'displayName' },
+          { name: 'First Name (Given Name)', value: 'givenName' },
+          { name: 'Last Name (Surname)', value: 'sn' },
+          { name: 'Email', value: 'mail' },
+          { name: 'Telephone Number', value: 'telephoneNumber' },
+          { name: 'Mobile', value: 'mobile' },
+          { name: 'Title', value: 'title' },
+          { name: 'Department', value: 'department' },
+          { name: 'Company', value: 'company' },
+          { name: 'Manager', value: 'manager' },
+          { name: 'Description', value: 'description' },
+          { name: 'Office', value: 'physicalDeliveryOfficeName' },
+          { name: 'Street Address', value: 'streetAddress' },
+          { name: 'City', value: 'l' },
+          { name: 'State/Province', value: 'st' },
+          { name: 'Postal Code', value: 'postalCode' },
+          { name: 'Country', value: 'co' },
+        ];
+      },
+    },
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -595,14 +1115,99 @@ export class ActiveDirectoryAdmin implements INodeType {
             result = await checkPasswordExpiry.call(this, client, itemIndex);
           } else if (resource === 'user' && operation === 'setAttributes') {
             result = await setAttributes.call(this, client, itemIndex);
+          } else if (resource === 'group' && operation === 'create') {
+            const groupName = this.getNodeParameter('groupName', itemIndex) as string;
+            const groupParentDn = this.getNodeParameter('groupParentDn', itemIndex) as string;
+            const groupType = this.getNodeParameter('groupType', itemIndex) as 'security' | 'distribution';
+            const groupScope = this.getNodeParameter('groupScope', itemIndex) as 'global' | 'domainLocal' | 'universal';
+            const groupDescription = this.getNodeParameter('groupDescription', itemIndex, '') as string;
+            const groupSamAccountName = this.getNodeParameter('groupSamAccountName', itemIndex, '') as string;
+
+            const groupResult = await client.createGroup(groupName, groupParentDn, {
+              groupType,
+              scope: groupScope,
+              description: groupDescription || undefined,
+              samAccountName: groupSamAccountName || undefined,
+            });
+
+            result = { json: groupResult, pairedItem: { item: itemIndex } };
+          } else if (resource === 'group' && operation === 'get') {
+            const groupDn = this.getNodeParameter('groupDn', itemIndex) as string;
+            const groupData = await client.getGroup(groupDn);
+            result = { json: groupData, pairedItem: { item: itemIndex } };
+          } else if (resource === 'group' && operation === 'list') {
+            const groupSearchFilter = this.getNodeParameter('groupSearchFilter', itemIndex, '') as string;
+            const groupFilterType = this.getNodeParameter('groupFilterType', itemIndex, 'all') as string;
+            const groupFilterScope = this.getNodeParameter('groupFilterScope', itemIndex, 'all') as string;
+            const groupMaxResults = this.getNodeParameter('groupMaxResults', itemIndex, 100) as number;
+
+            const groups = await client.listGroups({
+              searchFilter: groupSearchFilter || undefined,
+              groupType: groupFilterType as any,
+              scope: groupFilterScope as any,
+              maxResults: groupMaxResults,
+            });
+
+            result = { json: { groups, count: groups.length }, pairedItem: { item: itemIndex } };
+          } else if (resource === 'group' && operation === 'modify') {
+            const groupDn = this.getNodeParameter('groupDn', itemIndex) as string;
+            const groupAttributes = this.getNodeParameter('groupAttributes', itemIndex, {}) as any;
+
+            const attributes: Record<string, string> = {};
+            if (groupAttributes.attribute && Array.isArray(groupAttributes.attribute)) {
+              for (const attr of groupAttributes.attribute) {
+                attributes[attr.name] = attr.value;
+              }
+            }
+
+            const modifyResult = await client.modifyGroup(groupDn, attributes);
+            result = { json: modifyResult, pairedItem: { item: itemIndex } };
+          } else if (resource === 'group' && operation === 'delete') {
+            const groupDn = this.getNodeParameter('groupDn', itemIndex) as string;
+            const deleteResult = await client.deleteGroup(groupDn);
+            result = { json: deleteResult, pairedItem: { item: itemIndex } };
           } else if (resource === 'group' && operation === 'addMember') {
             result = await addGroupMember.call(this, client, itemIndex);
           } else if (resource === 'group' && operation === 'removeMember') {
             result = await removeGroupMember.call(this, client, itemIndex);
+          } else if (resource === 'ou' && operation === 'create') {
+            const ouName = this.getNodeParameter('ouName', itemIndex) as string;
+            const ouParentDn = this.getNodeParameter('ouParentDn', itemIndex) as string;
+            const ouDescription = this.getNodeParameter('ouDescription', itemIndex, '') as string;
+
+            const ouResult = await client.createOU(ouName, ouParentDn, ouDescription || undefined);
+            result = { json: ouResult, pairedItem: { item: itemIndex } };
+          } else if (resource === 'ou' && operation === 'get') {
+            const ouDn = this.getNodeParameter('ouDn', itemIndex) as string;
+            const ouData = await client.getOU(ouDn);
+            result = { json: ouData, pairedItem: { item: itemIndex } };
+          } else if (resource === 'ou' && operation === 'list') {
+            const ouParentDnList = this.getNodeParameter('ouParentDnList', itemIndex, '') as string;
+            const ouSearchFilter = this.getNodeParameter('ouSearchFilter', itemIndex, '') as string;
+
+            const ous = await client.listOUs(ouParentDnList || undefined, ouSearchFilter || undefined);
+            result = { json: { ous, count: ous.length }, pairedItem: { item: itemIndex } };
+          } else if (resource === 'ou' && operation === 'modify') {
+            const ouDn = this.getNodeParameter('ouDn', itemIndex) as string;
+            const ouAttributes = this.getNodeParameter('ouAttributes', itemIndex, {}) as any;
+
+            const attributes: Record<string, string> = {};
+            if (ouAttributes.attribute && Array.isArray(ouAttributes.attribute)) {
+              for (const attr of ouAttributes.attribute) {
+                attributes[attr.name] = attr.value;
+              }
+            }
+
+            const modifyResult = await client.modifyOU(ouDn, attributes);
+            result = { json: modifyResult, pairedItem: { item: itemIndex } };
+          } else if (resource === 'ou' && operation === 'delete') {
+            const ouDn = this.getNodeParameter('ouDn', itemIndex) as string;
+            const deleteResult = await client.deleteOU(ouDn);
+            result = { json: deleteResult, pairedItem: { item: itemIndex } };
           } else {
             throw new NodeOperationError(
               this.getNode(),
-              `Opération non supportée: ${resource}.${operation}`,
+              `Unsupported operation: ${resource}.${operation}`,
               { itemIndex }
             );
           }
