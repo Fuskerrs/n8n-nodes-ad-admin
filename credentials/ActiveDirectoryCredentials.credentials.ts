@@ -12,16 +12,16 @@ export class ActiveDirectoryCredentials implements ICredentialType {
         {
           name: 'LDAPS (Secure - Port 636)',
           value: 'ldaps',
-          description: 'Connexion sécurisée SSL/TLS (recommandé)',
+          description: 'Secure SSL/TLS connection (recommended)',
         },
         {
           name: 'LDAP (Non-secure - Port 389)',
           value: 'ldap',
-          description: 'Connexion non chiffrée (⚠️ mot de passe en clair)',
+          description: 'Unencrypted connection (⚠️ passwords in clear text)',
         },
       ],
       default: 'ldaps',
-      description: 'Type de connexion au serveur Active Directory',
+      description: 'Connection type to Active Directory server',
     },
     {
       displayName: 'Host Type',
@@ -31,16 +31,16 @@ export class ActiveDirectoryCredentials implements ICredentialType {
         {
           name: 'DNS Name',
           value: 'dns',
-          description: 'Utiliser un nom de domaine (ex: DC-01.domain.local)',
+          description: 'Use a domain name (e.g., DC-01.domain.local)',
         },
         {
           name: 'IP Address',
           value: 'ip',
-          description: 'Utiliser une adresse IP (ex: 192.168.1.10)',
+          description: 'Use an IP address (e.g., 192.168.1.10)',
         },
       ],
       default: 'dns',
-      description: 'Type d\'adresse pour la connexion',
+      description: 'Address type for connection',
     },
     {
       displayName: 'Host',
@@ -53,7 +53,7 @@ export class ActiveDirectoryCredentials implements ICredentialType {
           hostType: ['dns'],
         },
       },
-      description: 'Nom DNS du contrôleur de domaine',
+      description: 'DNS name of the domain controller',
       required: true,
     },
     {
@@ -67,7 +67,7 @@ export class ActiveDirectoryCredentials implements ICredentialType {
           hostType: ['ip'],
         },
       },
-      description: 'Adresse IP du contrôleur de domaine',
+      description: 'IP address of the domain controller',
       required: true,
     },
     {
@@ -85,7 +85,7 @@ export class ActiveDirectoryCredentials implements ICredentialType {
       type: 'string',
       default: '',
       placeholder: 'DC=example,DC=local',
-      description: 'DN de base pour les recherches dans l\'annuaire',
+      description: 'Base DN for directory searches',
       required: true,
     },
     {
@@ -94,7 +94,7 @@ export class ActiveDirectoryCredentials implements ICredentialType {
       type: 'string',
       default: '',
       placeholder: 'CN=Administrator,CN=Users,DC=example,DC=local',
-      description: 'DN complet du compte de service avec droits d\'administration',
+      description: 'Full DN of service account with administrative rights',
       required: true,
     },
     {
@@ -104,7 +104,7 @@ export class ActiveDirectoryCredentials implements ICredentialType {
       typeOptions: { password: true },
       default: '',
       required: true,
-      description: 'Mot de passe du compte de service',
+      description: 'Service account password',
     },
     {
       displayName: 'TLS Certificate Validation',
@@ -119,21 +119,21 @@ export class ActiveDirectoryCredentials implements ICredentialType {
         {
           name: 'System CA Bundle',
           value: 'system',
-          description: 'Utiliser les certificats CA du système (défaut)',
+          description: 'Use system CA bundle (default)',
         },
         {
           name: 'Skip Validation',
           value: 'skip',
-          description: '⚠️ Ignorer la validation (certificats auto-signés uniquement)',
+          description: '⚠️ Skip validation (self-signed certificates only)',
         },
         {
           name: 'Custom Certificate',
           value: 'custom',
-          description: 'Fournir un certificat CA personnalisé',
+          description: 'Provide custom CA certificate',
         },
       ],
       default: 'system',
-      description: 'Mode de validation du certificat TLS',
+      description: 'TLS certificate validation mode',
     },
     {
       displayName: 'Root CA Certificate',
@@ -151,14 +151,14 @@ export class ActiveDirectoryCredentials implements ICredentialType {
       },
       default: '',
       placeholder: '-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIQPTxrAJiCX4pIRFX3zmhqoDANBgkqhkiG...\n-----END CERTIFICATE-----',
-      description: 'Certificat CA racine au format PEM (coller le contenu complet)',
+      description: 'Root CA certificate in PEM format (paste complete content)',
     },
     {
       displayName: 'Connect Timeout (ms)',
       name: 'timeout',
       type: 'number',
       default: 10000,
-      description: 'Délai d\'attente de connexion en millisecondes',
+      description: 'Connection timeout in milliseconds',
     },
     {
       displayName: 'Warning',
@@ -170,7 +170,7 @@ export class ActiveDirectoryCredentials implements ICredentialType {
         },
       },
       default: '',
-      description: '⚠️ ATTENTION: LDAP non-sécurisé transmet les mots de passe en clair. Utilisez LDAPS en production !',
+      description: '⚠️ WARNING: Unsecured LDAP transmits passwords in clear text. Use LDAPS in production!',
     },
     {
       displayName: 'Password Operations Notice',
@@ -182,7 +182,7 @@ export class ActiveDirectoryCredentials implements ICredentialType {
         },
       },
       default: '',
-      description: '🔒 Les opérations de mot de passe (Create, Reset Password) nécessitent LDAPS et échoueront en LDAP.',
+      description: '🔒 Password operations (Create, Reset Password) require LDAPS and will fail with LDAP.',
     },
   ];
 }

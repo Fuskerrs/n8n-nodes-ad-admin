@@ -1,0 +1,23 @@
+# Test files with potential credentials
+test-*.js
+test-*.ts
+
+# Development files
+.claude/
+*.log
+.DS_Store
+.env
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts from source
+node_modules/

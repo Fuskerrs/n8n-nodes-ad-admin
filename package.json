@@ -41,5 +41,15 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
-  }
+  },
+  "files": [
+    "dist",
+    "credentials",
+    "nodes",
+    "helpers",
+    "icons",
+    "README.md",
+    "package.json",
+    "tsconfig.json"
+  ]
 }

@@ -11,7 +11,7 @@ export interface LdapConfig {
 }
 
 /**
- * Échappe les caractères spéciaux dans un DN LDAP
+ * Escapes special characters in an LDAP DN
  */
 export function escapeDN(str: string): string {
   return str
@@ -29,31 +29,31 @@ export function escapeDN(str: string): string {
 }
 
 /**
- * Valide un sAMAccountName (max 20 chars, pas d'espaces ni caractères spéciaux)
+ * Validates a sAMAccountName (max 20 chars, no spaces or special characters)
  */
 export function validateSAMAccountName(sam: string): { valid: boolean; error?: string } {
   if (!sam || sam.length === 0) {
-    return { valid: false, error: 'sAMAccountName ne peut pas être vide' };
+    return { valid: false, error: 'sAMAccountName cannot be empty' };
   }
   if (sam.length > 20) {
-    return { valid: false, error: 'sAMAccountName ne peut pas dépasser 20 caractères' };
+    return { valid: false, error: 'sAMAccountName cannot exceed 20 characters' };
   }
   if (/[\s"\/\\\[\]:;|=,+*?<>]/.test(sam)) {
-    return { valid: false, error: 'sAMAccountName contient des caractères invalides' };
+    return { valid: false, error: 'sAMAccountName contains invalid characters' };
   }
   return { valid: true };
 }
 
 /**
- * Valide un UPN
+ * Validates a UPN (User Principal Name)
  */
 export function validateUPN(upn: string): { valid: boolean; error?: string } {
   if (!upn || !upn.includes('@')) {
-    return { valid: false, error: 'UPN doit être au format user@domain.tld' };
+    return { valid: false, error: 'UPN must be in format user@domain.tld' };
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(upn)) {
-    return { valid: false, error: 'Format UPN invalide' };
+    return { valid: false, error: 'Invalid UPN format' };
   }
   return { valid: true };
 }
@@ -88,7 +88,7 @@ export class AdClient {
   }
 
   /**
-   * Reconnecte le client en cas d'erreur
+   * Reconnects the client in case of error
    */
   private async reconnect(): Promise<void> {
     try {
@@ -145,14 +145,14 @@ export class AdClient {
   }
 
   /**
-   * Définit le mot de passe AD (unicodePwd) - NÉCESSITE LDAPS
+   * Sets AD password (unicodePwd) - REQUIRES LDAPS
    */
   async setPassword(dn: string, newPassword: string): Promise<void> {
-    // Vérifier que la connexion est sécurisée
+    // Verify that the connection is secure
     if (this.config.isSecure === false) {
       throw new Error(
-        'Les opérations de mot de passe nécessitent LDAPS (port 636). ' +
-        'LDAP non-sécurisé (port 389) n\'est pas supporté par Active Directory pour les mots de passe.'
+        'Password operations require LDAPS (port 636). ' +
+        'Unsecured LDAP (port 389) is not supported by Active Directory for password operations.'
       );
     }
 
@@ -169,7 +169,7 @@ export class AdClient {
   }
 
   /**
-   * Active un utilisateur (retire le flag ACCOUNTDISABLE)
+   * Enables a user (removes the ACCOUNTDISABLE flag)
    */
   async enableUser(dn: string): Promise<void> {
     const { searchEntries } = await this.search(dn, {
@@ -178,11 +178,11 @@ export class AdClient {
     });
 
     if (!searchEntries || searchEntries.length === 0) {
-      throw new Error(`Utilisateur non trouvé: ${dn}`);
+      throw new Error(`User not found: ${dn}`);
     }
 
     const currentUAC = parseInt(searchEntries[0].userAccountControl as string, 10) || 512;
-    const newUAC = currentUAC & ~0x0002; // Retire le flag ACCOUNTDISABLE
+    const newUAC = currentUAC & ~0x0002; // Remove ACCOUNTDISABLE flag
 
     await this.modify(dn, new Change({
       operation: 'replace',
@@ -194,7 +194,7 @@ export class AdClient {
   }
 
   /**
-   * Désactive un utilisateur (ajoute le flag ACCOUNTDISABLE)
+   * Disables a user (adds the ACCOUNTDISABLE flag)
    */
   async disableUser(dn: string): Promise<void> {
     const { searchEntries } = await this.search(dn, {
@@ -203,11 +203,11 @@ export class AdClient {
     });
 
     if (!searchEntries || searchEntries.length === 0) {
-      throw new Error(`Utilisateur non trouvé: ${dn}`);
+      throw new Error(`User not found: ${dn}`);
     }
 
     const currentUAC = parseInt(searchEntries[0].userAccountControl as string, 10) || 512;
-    const newUAC = currentUAC | 0x0002; // Ajoute le flag ACCOUNTDISABLE
+    const newUAC = currentUAC | 0x0002; // Add ACCOUNTDISABLE flag
 
     await this.modify(dn, new Change({
       operation: 'replace',
@@ -219,7 +219,7 @@ export class AdClient {
   }
 
   /**
-   * Vérifie si un utilisateur est membre d'un groupe
+   * Checks if a user is a member of a group
    */
   async isGroupMember(userDn: string, groupDn: string): Promise<boolean> {
     try {
@@ -243,7 +243,7 @@ export class AdClient {
   }
 
   /**
-   * Recherche un utilisateur par sAMAccountName
+   * Searches for a user by sAMAccountName
    */
   async findUserBySAM(samAccountName: string): Promise<string | null> {
     const { searchEntries } = await this.search(this.baseDn, {
@@ -260,7 +260,7 @@ export class AdClient {
   }
 
   /**
-   * Récupère un utilisateur avec toutes ses propriétés
+   * Retrieves a user with all properties
    */
   async getUserBySAM(samAccountName: string, includeAll: boolean = false): Promise<any | null> {
     const basicAttributes = [
@@ -284,7 +284,7 @@ export class AdClient {
     const user = searchEntries[0];
     const result: any = {};
 
-    // Convertir les propriétés LDAP en format JSON lisible
+    // Convert LDAP properties to readable JSON format
     Object.keys(user).forEach(key => {
       if (key === 'dn') {
         result.distinguishedName = user[key]?.toString();
@@ -298,7 +298,7 @@ export class AdClient {
       }
     });
 
-    // Convertir userAccountControl en informations lisibles
+    // Convert userAccountControl to readable information
     if (result.userAccountControl) {
       const uac = parseInt(result.userAccountControl, 10);
       result.accountEnabled = !(uac & 0x0002);
@@ -320,7 +320,7 @@ export class AdClient {
   }
 
   /**
-   * Liste les utilisateurs avec filtres avancés
+   * Lists users with advanced filters
    */
   async listUsers(options: {
     filterType?: string;
@@ -337,7 +337,7 @@ export class AdClient {
       maxResults
     } = options;
 
-    // Construire le filtre LDAP
+    // Build LDAP filter
     let filter = '(&(objectClass=user)';
 
     if (searchValue) {
@@ -386,7 +386,7 @@ export class AdClient {
     return searchEntries.map(user => {
       const result: any = {};
 
-      // Convertir les propriétés LDAP
+      // Convert LDAP properties
       Object.keys(user).forEach(key => {
         if (key === 'dn') {
           result.distinguishedName = user[key]?.toString();
@@ -400,7 +400,7 @@ export class AdClient {
         }
       });
 
-      // Ajouter les informations d'état du compte
+      // Add account status information
       if (result.userAccountControl) {
         const uac = parseInt(result.userAccountControl, 10);
         result.accountEnabled = !(uac & 0x0002);
@@ -411,7 +411,7 @@ export class AdClient {
   }
 
   /**
-   * Récupère tous les groupes d'un utilisateur
+   * Retrieves all groups of a user
    */
   async getUserGroups(samAccountName: string, includeNested: boolean = true, fullDetails: boolean = false): Promise<any[]> {
     const attributes = fullDetails
@@ -425,7 +425,7 @@ export class AdClient {
     });
 
     if (!searchEntries || searchEntries.length === 0) {
-      throw new Error(`Utilisateur non trouvé: ${samAccountName}`);
+      throw new Error(`User not found: ${samAccountName}`);
     }
 
     const memberOf = searchEntries[0].memberOf;
@@ -434,7 +434,7 @@ export class AdClient {
     const groupDNs = Array.isArray(memberOf) ? memberOf.map(g => g.toString()) : [memberOf.toString()];
     const groups: any[] = [];
 
-    // Récupérer les détails de chaque groupe
+    // Retrieve details for each group
     for (const groupDN of groupDNs) {
       try {
         const { searchEntries: groupEntries } = await this.search(groupDN, {
@@ -457,7 +457,7 @@ export class AdClient {
 
           groups.push(groupInfo);
 
-          // Si includeNested, récupérer les groupes parents
+          // If includeNested, retrieve parent groups
           if (includeNested && group.memberOf) {
             const parentGroups = Array.isArray(group.memberOf)
               ? group.memberOf.map(g => g.toString())
@@ -485,14 +485,14 @@ export class AdClient {
                     });
                   }
                 } catch (e) {
-                  // Ignorer les erreurs de groupes inaccessibles
+                  // Ignore errors for inaccessible groups
                 }
               }
             }
           }
         }
       } catch (e) {
-        // Ignorer les erreurs de groupes inaccessibles
+        // Ignore errors for inaccessible groups
       }
     }
 
@@ -500,7 +500,7 @@ export class AdClient {
   }
 
   /**
-   * Récupère les informations d'activité d'un utilisateur
+   * Retrieves user activity information
    */
   async getUserActivity(samAccountName: string, activityType: string = 'all'): Promise<any> {
     const attributes = [
@@ -516,13 +516,13 @@ export class AdClient {
     });
 
     if (!searchEntries || searchEntries.length === 0) {
-      throw new Error(`Utilisateur non trouvé: ${samAccountName}`);
+      throw new Error(`User not found: ${samAccountName}`);
     }
 
     const user = searchEntries[0];
     const result: any = {};
 
-    // Conversion des timestamps Active Directory
+    // Convert Active Directory timestamps
     const convertADTimestamp = (timestamp: string | undefined): string | null => {
       if (!timestamp || timestamp === '0' || timestamp === '9223372036854775807') return null;
       const winTime = parseInt(timestamp, 10);
@@ -565,22 +565,22 @@ export class AdClient {
   }
 
   /**
-   * Déverrouille un compte utilisateur
+   * Unlocks a user account
    */
   async unlockUserAccount(samAccountName: string): Promise<any> {
     const dn = await this.findUserBySAM(samAccountName);
     if (!dn) {
-      throw new Error(`Utilisateur non trouvé: ${samAccountName}`);
+      throw new Error(`User not found: ${samAccountName}`);
     }
 
-    // Vérifier si le compte est verrouillé
+    // Check if account is locked
     const { searchEntries } = await this.search(dn, {
       scope: 'base',
       attributes: ['lockoutTime', 'userAccountControl']
     });
 
     if (!searchEntries || searchEntries.length === 0) {
-      throw new Error(`Impossible de récupérer les informations de verrouillage`);
+      throw new Error(`Unable to retrieve lockout information`);
     }
 
     const lockoutTime = searchEntries[0].lockoutTime?.toString();
@@ -589,11 +589,11 @@ export class AdClient {
     if (!isLocked) {
       return {
         wasLocked: false,
-        message: 'Le compte n\'était pas verrouillé',
+        message: 'Account was not locked',
       };
     }
 
-    // Déverrouiller en mettant lockoutTime à 0
+    // Unlock by setting lockoutTime to 0
     await this.modify(dn, new Change({
       operation: 'replace',
       modification: new Attribute({
@@ -605,12 +605,12 @@ export class AdClient {
     return {
       wasLocked: true,
       unlocked: true,
-      message: 'Compte déverrouillé avec succès',
+      message: 'Account unlocked successfully',
     };
   }
 
   /**
-   * Vérifie l'expiration du mot de passe
+   * Checks password expiration
    */
   async checkPasswordExpiry(samAccountName: string): Promise<any> {
     const { searchEntries } = await this.search(this.baseDn, {
@@ -620,21 +620,21 @@ export class AdClient {
     });
 
     if (!searchEntries || searchEntries.length === 0) {
-      throw new Error(`Utilisateur non trouvé: ${samAccountName}`);
+      throw new Error(`User not found: ${samAccountName}`);
     }
 
     const user = searchEntries[0];
     const pwdLastSet = user.pwdLastSet?.toString();
     const userAccountControl = parseInt(user.userAccountControl?.toString() || '0', 10);
 
-    // Vérifier si le mot de passe n'expire jamais
+    // Check if password never expires
     const passwordNeverExpires = !!(userAccountControl & 0x10000);
 
     if (passwordNeverExpires) {
       return {
         passwordNeverExpires: true,
         mustChangePassword: pwdLastSet === '0',
-        message: 'Le mot de passe est configuré pour ne jamais expirer',
+        message: 'Password is configured to never expire',
       };
     }
 
@@ -643,13 +643,17 @@ export class AdClient {
         passwordNeverExpires: false,
         mustChangePassword: true,
         expired: false,
-        message: 'L\'utilisateur doit changer son mot de passe à la prochaine connexion',
+        message: 'User must change password at next logon',
       };
     }
 
-    // Récupérer la politique de mot de passe du domaine
+    // Try to retrieve domain password policy with timeout
     try {
-      const { searchEntries: domainEntries } = await this.search(this.baseDn, {
+      // Extract domain from baseDn (e.g., DC=example,DC=com)
+      const domainParts = this.baseDn.split(',').filter(part => part.trim().toUpperCase().startsWith('DC='));
+      const domainDn = domainParts.join(',');
+
+      const { searchEntries: domainEntries } = await this.search(domainDn, {
         scope: 'base',
         attributes: ['maxPwdAge']
       });
@@ -659,20 +663,20 @@ export class AdClient {
         maxPwdAge = domainEntries[0].maxPwdAge?.toString() || '0';
       }
 
-      if (maxPwdAge === '0') {
+      if (maxPwdAge === '0' || maxPwdAge === '9223372036854775807') {
         return {
           passwordNeverExpires: false,
           mustChangePassword: false,
           expired: false,
-          message: 'Aucune politique d\'expiration configurée',
+          message: 'No password expiration policy configured',
         };
       }
 
-      // Calculer la date d'expiration
+      // Calculate expiration date
       const pwdLastSetTime = parseInt(pwdLastSet || '0', 10);
       const maxAge = Math.abs(parseInt(maxPwdAge, 10));
       const expiryTime = pwdLastSetTime + maxAge;
-      const now = Date.now() * 10000 + 116444736000000000; // Convertir en timestamp AD
+      const now = Date.now() * 10000 + 116444736000000000; // Convert to AD timestamp
 
       const daysUntilExpiry = Math.floor((expiryTime - now) / (10000 * 1000 * 60 * 60 * 24));
       const expired = now > expiryTime;
@@ -684,16 +688,18 @@ export class AdClient {
         daysUntilExpiry: expired ? 0 : daysUntilExpiry,
         expiryDate: new Date((expiryTime / 10000) - 11644473600000).toISOString(),
         message: expired
-          ? 'Le mot de passe a expiré'
-          : `Le mot de passe expire dans ${daysUntilExpiry} jour(s)`,
+          ? 'Password has expired'
+          : `Password expires in ${daysUntilExpiry} day(s)`,
       };
 
-    } catch (e) {
+    } catch (e: any) {
+      // Return basic info without domain policy if we can't retrieve it
       return {
         passwordNeverExpires: false,
         mustChangePassword: false,
         expired: false,
-        error: 'Impossible de récupérer la politique de mot de passe',
+        error: 'Unable to retrieve domain password policy',
+        errorDetails: e.message || 'Unknown error',
       };
     }
   }

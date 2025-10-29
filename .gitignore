@@ -7,3 +7,5 @@ dist/
 *.swp
 *.swo
 *~
+test-*.js
+test-*.ts
