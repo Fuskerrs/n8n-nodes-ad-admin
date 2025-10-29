@@ -1,4 +1,8 @@
-import type { ICredentialType, INodeProperties } from 'n8n-workflow';
+import type {
+  ICredentialType,
+  ICredentialTestRequest,
+  INodeProperties,
+} from 'n8n-workflow';
 
 export class ActiveDirectoryCredentials implements ICredentialType {
   name = 'activeDirectoryApi';
@@ -159,6 +163,13 @@ export class ActiveDirectoryCredentials implements ICredentialType {
       type: 'number',
       default: 10000,
       description: 'Connection timeout in milliseconds',
+    },
+    {
+      displayName: 'Test Connection',
+      name: 'testConnectionNotice',
+      type: 'notice',
+      default: '',
+      description: 'ℹ️ To test your LDAP connection, add an Active Directory Admin node to your workflow and try a simple operation like "List Users" or "Get User".',
     },
     {
       displayName: 'Warning',

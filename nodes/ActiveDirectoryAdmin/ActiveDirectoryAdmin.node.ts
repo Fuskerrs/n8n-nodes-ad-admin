@@ -17,10 +17,12 @@ export class ActiveDirectoryAdmin implements INodeType {
     icon: 'file:activeDirectoryAdmin.svg',
     group: ['transform'],
     version: 1,
+    subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
     description: 'Perform administrative operations on Active Directory via LDAP/LDAPS',
     defaults: { name: 'Active Directory Admin' },
     inputs: ['main'],
     outputs: ['main'],
+    documentationUrl: 'https://github.com/Fuskerrs/n8n-nodes-ad-admin',
     credentials: [
       {
         name: 'activeDirectoryApi',
