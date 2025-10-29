@@ -1,0 +1,45 @@
+{
+  "name": "n8n-nodes-ad-admin",
+  "version": "0.1.14",
+  "description": "n8n community node for administering Active Directory via LDAPS",
+  "keywords": [
+    "n8n",
+    "active-directory",
+    "ldap",
+    "ad",
+    "ldaps"
+  ],
+  "author": "Fuskerrs",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/ActiveDirectoryCredentials.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/ActiveDirectoryAdmin/ActiveDirectoryAdmin.node.js"
+    ],
+    "icons": {
+      "activeDirectoryAdmin": "dist/icons/activeDirectoryAdmin.svg"
+    }
+  },
+  "scripts": {
+    "build": "tsc && npm run copy-icons",
+    "copy-icons": "cp icons/*.svg dist/icons/",
+    "lint": "eslint .",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "ldapts": "^4.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "n8n-workflow": "^1.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

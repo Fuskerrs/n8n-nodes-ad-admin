@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.claude/
+*.log
+.DS_Store
+.env
+*.swp
+*.swo
+*~
