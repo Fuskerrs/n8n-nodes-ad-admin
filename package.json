@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-ad-admin",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "n8n community node for administering Active Directory via LDAPS",
   "keywords": [
     "n8n",
