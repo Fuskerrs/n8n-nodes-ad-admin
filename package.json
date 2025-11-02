@@ -1,13 +1,17 @@
 {
   "name": "n8n-nodes-ad-admin",
-  "version": "0.2.2",
-  "description": "n8n community node for administering Active Directory via LDAPS",
+  "version": "0.3.0",
+  "description": "n8n community node for administering Active Directory via LDAPS with official Docker Collector support",
   "keywords": [
     "n8n",
     "active-directory",
     "ldap",
     "ad",
-    "ldaps"
+    "ldaps",
+    "docker",
+    "collector",
+    "rest-api",
+    "automation"
   ],
   "author": "Fuskerrs",
   "license": "MIT",

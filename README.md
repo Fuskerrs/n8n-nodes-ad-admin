@@ -11,6 +11,8 @@ Manage Users, Groups, and Organizational Units with full LDAPS support and dynam
 [![npm version](https://badge.fury.io/js/n8n-nodes-ad-admin.svg)](https://badge.fury.io/js/n8n-nodes-ad-admin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://img.shields.io/npm/dt/n8n-nodes-ad-admin.svg)](https://www.npmjs.com/package/n8n-nodes-ad-admin)
+[![Docker Image](https://img.shields.io/docker/v/fuskerrs97/ad-collector-n8n?label=Collector%20Docker&logo=docker)](https://hub.docker.com/r/fuskerrs97/ad-collector-n8n)
+[![Docker Pulls](https://img.shields.io/docker/pulls/fuskerrs97/ad-collector-n8n)](https://hub.docker.com/r/fuskerrs97/ad-collector-n8n)
 
 ### ☕ Support this project
 
@@ -129,7 +131,60 @@ services:
   - Reset passwords
   - Manage group membership
 
-### Creating Credentials
+### Connection Modes
+
+This node supports two connection modes:
+
+#### 🔗 Direct Mode (Default)
+Connect directly from n8n to your Active Directory server using LDAP/LDAPS protocol.
+
+**Best for:**
+- On-premises n8n installations
+- Direct network access to domain controllers
+- Small to medium deployments
+
+#### 🐳 Collector Mode (Docker)
+Use the official AD Collector Docker container as an API gateway to your Active Directory.
+
+**Best for:**
+- Cloud-hosted n8n instances
+- Enterprise environments with network restrictions
+- Multi-tenant deployments
+- Better security isolation
+
+| Feature | Direct Mode | Collector Mode |
+|---------|-------------|----------------|
+| **Network Access** | Requires LDAP ports (389/636) | Only HTTP/HTTPS (8443) |
+| **Setup Complexity** | Medium | Simple (Docker one-liner) |
+| **Certificate Management** | Per workflow credential | Centralized in collector |
+| **Performance** | Direct connection | Connection pooling |
+| **Authentication** | LDAP Bind DN/Password | JWT Bearer Token |
+| **Best for** | Small deployments | Enterprise/Cloud |
+
+**📦 Docker Collector Links:**
+- **Docker Hub**: [fuskerrs97/ad-collector-n8n](https://hub.docker.com/r/fuskerrs97/ad-collector-n8n)
+- **GitHub**: [docker-ad-collector-n8n](https://github.com/Fuskerrs/docker-ad-collector-n8n)
+- **Full Documentation**: [COLLECTOR.md](COLLECTOR.md)
+
+**Quick Start with Collector:**
+```bash
+docker run -d \
+  --name ad-collector \
+  -e LDAP_URL=ldaps://dc.example.com:636 \
+  -e LDAP_BASE_DN=DC=example,DC=com \
+  -e LDAP_BIND_DN=CN=n8n-service,CN=Users,DC=example,DC=com \
+  -e LDAP_BIND_PASSWORD=YourSecurePassword \
+  -e LDAP_TLS_VERIFY=false \
+  -p 8443:8443 \
+  --restart unless-stopped \
+  fuskerrs97/ad-collector-n8n:latest
+```
+
+**See [COLLECTOR.md](COLLECTOR.md) for complete Collector Mode documentation.**
+
+---
+
+### Creating Credentials (Direct Mode)
 
 1. In n8n, go to **Credentials** → **New** → **Active Directory API**
 2. Configure the following:
@@ -938,10 +993,42 @@ See [LICENSE](LICENSE) file for full details.
 
 ---
 
+## 🌐 Ecosystem
+
+This node is part of a complete Active Directory automation solution:
+
+### 📦 Core Package
+- **[n8n-nodes-ad-admin](https://www.npmjs.com/package/n8n-nodes-ad-admin)** - This npm package (n8n community node)
+- **[GitHub Repository](https://github.com/Fuskerrs/n8n-nodes-ad-admin)** - Source code and documentation
+
+### 🐳 Official Docker Collector (NEW!)
+- **[AD Collector on Docker Hub](https://hub.docker.com/r/fuskerrs97/ad-collector-n8n)** - Official Docker image
+- **[Collector Source Code](https://github.com/Fuskerrs/docker-ad-collector-n8n)** - GitHub repository
+- **Image**: `fuskerrs97/ad-collector-n8n:latest` (138 MB, Alpine Linux)
+- **Features**: 26 REST API endpoints, JWT authentication, LDAPS support, connection pooling
+- **Documentation**: [COLLECTOR.md](COLLECTOR.md) - Complete setup guide
+
+### 🔗 Integration
+```
+┌─────────────┐         ┌──────────────────┐         ┌─────────────────┐
+│   n8n       │ ──────> │  AD Collector    │ ──────> │ Active Directory│
+│  Workflows  │  HTTP   │  Docker (8443)   │  LDAPS  │    Server       │
+└─────────────┘         └──────────────────┘         └─────────────────┘
+    (This node)          (Optional gateway)          (Domain Controller)
+```
+
+Choose your deployment:
+- **Direct Mode**: n8n → Active Directory (LDAP/LDAPS)
+- **Collector Mode**: n8n → AD Collector → Active Directory (HTTP + LDAPS)
+
+---
+
 ## 🔗 Links
 
 - **npm**: [npmjs.com/package/n8n-nodes-ad-admin](https://www.npmjs.com/package/n8n-nodes-ad-admin)
 - **GitHub**: [github.com/Fuskerrs/n8n-nodes-ad-admin](https://github.com/Fuskerrs/n8n-nodes-ad-admin)
+- **Docker Collector**: [hub.docker.com/r/fuskerrs97/ad-collector-n8n](https://hub.docker.com/r/fuskerrs97/ad-collector-n8n)
+- **Collector Source**: [github.com/Fuskerrs/docker-ad-collector-n8n](https://github.com/Fuskerrs/docker-ad-collector-n8n)
 - **n8n**: [n8n.io](https://n8n.io)
 - **Support**: [buymeacoffee.com/freelancerc5](https://buymeacoffee.com/freelancerc5)
 
