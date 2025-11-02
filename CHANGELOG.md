@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.1] - 2025-02-01
+
+### Documentation
+- 📝 **Updated README on npm** - Added complete Docker Collector documentation
+- 🐳 **Docker badges** - Added Docker Hub version and pulls badges
+- 🔗 **Updated links** - All Docker Collector and ecosystem links now visible on npm
+- 📖 **COLLECTOR.md** - Comprehensive setup guide now included in package
+- 📊 **CHANGELOG.md** - Full version history now available
+
+This is a documentation-only release to update the npm package README with complete Docker Collector information.
+
+---
+
 ## [0.3.0] - 2025-02-01
 
 ### Added
